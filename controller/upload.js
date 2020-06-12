@@ -2,17 +2,17 @@ const path = require('path');
 const multer = require('multer');
 const profil = multer({
   storage: addStorage('./ImageProfil', 'Profil'),
-  limits: { fileSize: 100000000 },
+  limits: { fileSize: 1000000 },
 }).single('profil');
 
 const msgimage = multer({
   storage: addStorage('./MsgImage', 'msg'),
-  limits: { fileSize: 100000000 },
+  limits: { fileSize: 1000000 },
 }).single('photo');
 
 const msgvideo = multer({
   storage: addStorage('./MsgVideo', 'msg'),
-  limits: { fileSize: 100000000 },
+  limits: { fileSize: 1000000 },
 }).single('video');
 
 function addStorage(storagePath, fileStartName) {

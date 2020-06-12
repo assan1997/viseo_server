@@ -12,7 +12,9 @@ module.exports = {
       email: data.email,
       password: data.password,
     });
-    let user = await User.findOne({ login: data.login });
+    let user = await User.findOne({
+      email: data.email,
+    });
     if (user !== null) {
       res.json({ err: 'err' });
     } else {
@@ -39,14 +41,14 @@ module.exports = {
   async addNewContact(req, res) {
     let data = req.body;
     if (data.pseudo !== data.user_pseudo) {
-      let contact = await User.findOne({ login: data.pseudo });
-      let user = await User.findOne({ login: data.user_pseudo });
+      let contact = await User.findOne({ _id: data.pseudo });
+      let user = await User.findOne({ _id: data.user_pseudo });
       if (contact !== null) {
         await User.updateOne(
-          { login: data.user_pseudo },
+          { _id: data.user_pseudo },
           { contacts: [...user.contacts, contact] }
         );
-        let output = await User.findOne({ login: data.user_pseudo }).populate(
+        let output = await User.findOne({ _id: data.user_pseudo }).populate(
           'contacts'
         );
         res.json(output);
@@ -54,9 +56,9 @@ module.exports = {
     }
   },
   async getAllContacts(req, res) {
-    let output = await User.findOne({ login: req.body.login }).populate(
-      'contacts'
-    );
+    let output = await User.findOne({ _id: req.body.user }).populate({
+      path: 'contacts',
+    });
     res.json(output);
   },
 };

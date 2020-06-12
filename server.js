@@ -1,15 +1,21 @@
 const http = require('http');
+
 mongoose = require('mongoose');
+const message = require('./controller/user_message');
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const app = express();
 const corsOptions = {
   origin: '*',
-  optionsSuccessStatus: 200,
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 };
 const server = http.createServer(app);
-const io = require('socket.io')(server);
+const io = require('socket.io')(server, {
+  transports: ['websocket', 'polling'],
+});
 const port = process.env.PORT || 4000;
 const route = require('./routes/index');
 app.use(cors(corsOptions));
@@ -24,12 +30,19 @@ io.on('connection', function (socket) {
   let t = [];
   // SALLE D'APPEL
   socket.on('session', function (data) {
-    let client = data.client;
-    client.oncall = false;
+    let client = { ...data.client, oncall: false };
+    roomCleaner(client.room);
     socket.join(client.room);
+    if (data.contacts.length !== 0) {
+      data.contacts.forEach((c) => {
+        let contact = clients.find((i) => i.userId === c._id);
+        if (contact !== undefined)
+          io.to(contact.room).emit('userOnline', data.client.userId);
+      });
+    }
     if (clients.length !== 0) {
       clients.forEach((item, index, array) => {
-        if (item.username === client.username) {
+        if (item.userId === client.userId) {
           clients.splice(clients.indexOf(index), client);
         } else {
           t.push('different');
@@ -40,57 +53,57 @@ io.on('connection', function (socket) {
     }
     if (t.length === clients.length) clients.push(client);
   });
-  // lorsque l'utilisateur se deconnecte on supprime sa salle d'appel
+  // ON SUPPRIME LA SALLE D'APPEL DE L'UTILISATEUR QUAND IL SE DECONNECTE
   socket.on('session-out', function (data) {
     let c = clients.findIndex((c) => c.username === data.user);
     clients.splice(c, 1);
-    io.of('/')
-      .in(data.room)
-      .clients((error, socketIds) => {
-        if (error) throw error;
-        socketIds.forEach((socketId) =>
-          io.sockets.sockets[socketId].leave(data.room)
-        );
-      });
+    roomCleaner(data.room);
   });
+  // APPEL
   socket.on('call', function (data) {
-    let peer = clients.find((c) => c.username === data.peer);
-    let feedback = {};
+    let callData = data;
+    let peer = clients.find((c) => c.userId === data.peer);
+    let init = clients.find((c) => c.userId === data.init);
+    console.log(data.peer);
     if (peer === undefined) {
-      feedback.msg = `Imposible de joindre ${data.peer} `;
-      feedback.status = 'failed';
-      socket.emit('call-event', feedback);
+      feedBack();
+      socket.emit(
+        'call-event',
+        feedBack('failed', `Echec de la connexion : utilisateur hors ligne`)
+      );
     } else {
-      feedback.msg = 'Appel en cours';
-      feedback.status = 'success';
       if (peer.oncall) {
-        feedback.msg = `${data.peer} à un autre autre appel`;
-        feedback.status = 'failed';
-        socket.emit('call-event', feedback);
+        socket.emit(
+          'call-event',
+          feedBack('failed', `${peer.user}à un autre autre appel`)
+        );
       } else {
-        socket.emit('call-event', feedback);
-        io.to(peer.room).emit('call-signal', data);
+        socket.emit('call-event', feedBack('success', 'Appel en cours'));
+        callData.user = init.username;
+        io.to(peer.room).emit('call-signal', callData);
       }
     }
   });
-  // code fonctionnel
+  // TRANSMISSION REUSSIE
   socket.on('ok', function (data) {
-    let init = clients.find((c) => c.username === data.init);
-    let peer = clients.find((c) => c.username === data.peer);
+    let init = clients.find((c) => c.userId === data.init);
+    let peer = clients.find((c) => c.userId === data.peer);
     OnCallStatus(true, init, peer);
     io.to(init.room).emit('AcceptCall', data.signal);
   });
-  // code fonctionnel
+  // TERMINER UN APPEL
   socket.on('end', function (data) {
-    let init = clients.find((c) => c.username === data.init);
-    let peer = clients.find((c) => c.username === data.peer);
+    let init = clients.find((c) => c.userId === data.init);
+    let peer = clients.find((c) => c.userId === data.peer);
     OnCallStatus(false, init, peer);
     io.to(init.room).emit('initEnd', feedBack('failed', 'Appel terminé'));
-    io.to(peer.room).emit('peerEnd', feedBack('failed', 'Appel terminé'));
+    if (peer !== undefined)
+      io.to(peer.room).emit('peerEnd', feedBack('failed', 'Appel terminé'));
   });
+  // REFUSER UN APPEL
   socket.on('denied', function (data) {
-    let init = clients.find((c) => c.username === data.init);
-    let peer = clients.find((c) => c.username === data.peer);
+    let init = clients.find((c) => c.userId === data.init);
+    let peer = clients.find((c) => c.userId === data.peer);
     io.to(init.room).emit('initEnd', feedBack('failed', 'Appel terminé'));
     io.to(peer.room).emit('peerEnd', feedBack('failed', 'Appel terminé'));
   });
@@ -98,25 +111,60 @@ io.on('connection', function (socket) {
     let init = clients.find((c) => c.username === data.user);
     OnCallStatus(false, init, null);
   });
+
+  // TEXT MESSAGE EVENTS
+  // **ENVOI DE MESSAGE TEXTE ** //
+
+  socket.on('sendMessage', async function (data) {
+    let init = clients.find((c) => c.userId === data.header.emitter);
+    let peer = clients.find((c) => c.userId === data.header.receiver);
+    let res = await message.addMessage(data);
+    io.to(init.room).emit('updateMessages', res.emitter);
+    if (peer !== undefined)
+      io.to(peer.room).emit('updateMessages', res.receiver);
+  });
 });
 
+// FONCTIONS
+
+/**
+ * CETTE FONCTION GERE LES MESSAGES LIES AU EVEMENTS D'APPEL
+ * @param {} status le statut du message
+ * @param {} msg le message
+ */
 function feedBack(status, msg) {
   let feedBack = {};
   feedBack.status = status;
   feedBack.msg = msg;
   return feedBack;
 }
+
+/**
+ * CETTE FONCTION PREND TROIS PARAMETTRE ET GERE LA METHODE ONCALL D'UN UTILISATEUR
+ * LA METHODE ON PERMET DE SAVOIR SI UN UTILISATEUR A UN APPEL EN COUR
+ * @param {} status Le Statut true OU false
+ * @param {} init Un Utilisateur
+ * @param {} peer Un Utilisateur
+ */
 function OnCallStatus(status, init, peer) {
   if (init !== null) {
-    let iniIndex = clients.findIndex((i) => i.username === init.username);
+    let iniIndex = clients.findIndex((i) => i.userId === init.userId);
     init.oncall = status;
     clients.splice(clients.indexOf(iniIndex), init);
   }
-  if (peer !== null) {
-    let peerIndex = clients.find((c) => c.username === peer.username);
+  if (peer !== null && peer !== undefined) {
+    let peerIndex = clients.find((c) => c.userId === peer.userId);
     peer.oncall = status;
     clients.splice(clients.indexOf(peerIndex), peer);
   }
+}
+function roomCleaner(room) {
+  io.of('/')
+    .in(room)
+    .clients((error, socketIds) => {
+      if (error) throw error;
+      socketIds.forEach((socketId) => io.sockets.sockets[socketId].leave(room));
+    });
 }
 server.listen(port, (err) => {
   console.log('started');
