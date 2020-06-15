@@ -1,4 +1,4 @@
-const User = require('../models/users');
+const User = require("../models/users");
 module.exports = {
   async getAllUsers(req, res) {
     User.find().then((users) => {
@@ -16,7 +16,7 @@ module.exports = {
       email: data.email,
     });
     if (user !== null) {
-      res.json({ err: 'err' });
+      res.json({ err: "err" });
     } else {
       newUser.save();
     }
@@ -31,7 +31,7 @@ module.exports = {
       if (result !== null) {
         res.json(result);
       } else {
-        res.json({ err: 'connection failed' });
+        res.json({ err: "connection failed" });
       }
     }
   },
@@ -49,7 +49,7 @@ module.exports = {
           { contacts: [...user.contacts, contact] }
         );
         let output = await User.findOne({ _id: data.user_pseudo }).populate(
-          'contacts'
+          "contacts"
         );
         res.json(output);
       }
@@ -57,7 +57,7 @@ module.exports = {
   },
   async getAllContacts(req, res) {
     let output = await User.findOne({ _id: req.body.user }).populate({
-      path: 'contacts',
+      path: "contacts",
     });
     res.json(output);
   },
