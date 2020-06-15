@@ -1,5 +1,4 @@
-//const https = require('https');
-const http = require('http');
+const https = require('https');
 mongoose = require('mongoose');
 const message = require('./controller/user_message');
 const express = require('express');
@@ -7,19 +6,19 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const app = express();
 const fs = require('fs');
-/* 
+
 const options = {
   key: fs.readFileSync('key.pem'),
   cert: fs.readFileSync('cert.pem'),
   ca: fs.readFileSync('certificate.crt'),
-}; */
+};
 const corsOptions = {
   origin: '*',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   preflightContinue: false,
   optionsSuccessStatus: 204,
 };
-const server = http.createServer(/* options, */ app);
+const server = https.createServer(options, app);
 const io = require('socket.io')(server, {
   transports: ['websocket', 'polling'],
 });
@@ -40,7 +39,13 @@ io.on('connection', function (socket) {
     let client = { ...data.client, oncall: false };
     roomCleaner(client.room);
     socket.join(client.room);
-    clients.forEach((c) => io.to(c.room).emit('clientsOnline', clients));
+    if (data.contacts.length !== 0) {
+      data.contacts.forEach((c) => {
+        let contact = clients.find((i) => i.userId === c._id);
+        if (contact !== undefined)
+          io.to(contact.room).emit('userOnline', data.client.userId);
+      });
+    }
     if (clients.length !== 0) {
       clients.forEach((item, index, array) => {
         if (item.userId === client.userId) {
@@ -52,9 +57,7 @@ io.on('connection', function (socket) {
     } else {
       clients.push(client);
     }
-    if (t.length === clients.length) {
-      clients.push(client);
-    }
+    if (t.length === clients.length) clients.push(client);
   });
   // ON SUPPRIME LA SALLE D'APPEL DE L'UTILISATEUR QUAND IL SE DECONNECTE
   socket.on('session-out', function (data) {
@@ -67,6 +70,7 @@ io.on('connection', function (socket) {
     let callData = data;
     let peer = clients.find((c) => c.userId === data.peer);
     let init = clients.find((c) => c.userId === data.init);
+    console.log(data.peer);
     if (peer === undefined) {
       feedBack();
       socket.emit(
@@ -74,7 +78,7 @@ io.on('connection', function (socket) {
         feedBack('failed', `Echec de la connexion : utilisateur hors ligne`)
       );
     } else {
-      if (data.signalType == 'call' && peer.oncall) {
+      if (peer.oncall) {
         socket.emit(
           'call-event',
           feedBack('failed', `${peer.user}à un autre autre appel`)
@@ -170,7 +174,7 @@ function roomCleaner(room) {
 }
 server.listen(port, (err) => {
   console.log('started');
-  mongoose.connect('mongodb://localhost/webrtc', {
+  mongoose.connect('mongodb://localhost/viseo', {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   });

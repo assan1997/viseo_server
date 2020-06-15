@@ -36,6 +36,7 @@ let clients = [];
 io.on('connection', function (socket) {
   let t = [];
   // SALLE D'APPEL
+
   socket.on('session', function (data) {
     let client = { ...data.client, oncall: false };
     roomCleaner(client.room);

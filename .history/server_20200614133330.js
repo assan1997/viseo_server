@@ -40,7 +40,6 @@ io.on('connection', function (socket) {
     let client = { ...data.client, oncall: false };
     roomCleaner(client.room);
     socket.join(client.room);
-    clients.forEach((c) => io.to(c.room).emit('clientsOnline', clients));
     if (clients.length !== 0) {
       clients.forEach((item, index, array) => {
         if (item.userId === client.userId) {
@@ -52,9 +51,7 @@ io.on('connection', function (socket) {
     } else {
       clients.push(client);
     }
-    if (t.length === clients.length) {
-      clients.push(client);
-    }
+    if (t.length === clients.length) clients.push(client);
   });
   // ON SUPPRIME LA SALLE D'APPEL DE L'UTILISATEUR QUAND IL SE DECONNECTE
   socket.on('session-out', function (data) {
