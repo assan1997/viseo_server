@@ -1,6 +1,6 @@
-const User = require('../models/users');
-const Chat = require('../models/messages');
-const ChatGroup = require('../models/messageGroup');
+const User = require("../models/users");
+const Chat = require("../models/messages");
+const ChatGroup = require("../models/messageGroup");
 class UserMessage {
   static addMessage(data) {
     return new Promise(async (resolve, reject) => {
@@ -11,12 +11,14 @@ class UserMessage {
             { emitter: data.header.receiver, receiver: data.header.emitter },
           ],
         });
+        console.log("data ", data);
+        console.log(" chat ", chat);
         let month = new Date().getMonth() + 1,
           day = new Date().getDate();
         let date =
           new Date().getFullYear() +
-          (month < 10 ? '0' + month : month) +
-          (day < 10 ? '0' + day : day);
+          (month < 10 ? "0" + month : month) +
+          (day < 10 ? "0" + day : day);
         if (chat === null) {
           let ct = await new Chat({
             emitter: data.header.emitter,
@@ -43,7 +45,6 @@ class UserMessage {
           });
         } else {
           console.log(chat);
-
           let chatG = await ChatGroup.findOne({
             chat_id: chat._id,
             date: date,
@@ -55,6 +56,7 @@ class UserMessage {
               time: data.created_at,
             });
             chatG.save();
+            console.log("chat g", chatG);
           } else {
             await new ChatGroup({
               chat_id: chat._id,
@@ -63,7 +65,7 @@ class UserMessage {
                 {
                   sendBy: data.header.emitter,
                   content: data.content,
-                  time: data.created_at,
+                  time: date,
                 },
               ],
             })
@@ -82,9 +84,9 @@ class UserMessage {
       await Chat.find({
         $or: [{ emitter: user }, { receiver: user }],
       })
-        .populate('emitter')
-        .populate('receiver')
-        .populate('messageGroup')
+        .populate("emitter")
+        .populate("receiver")
+        .populate("messageGroup")
         .then((c) => resolve(c));
     });
   }
