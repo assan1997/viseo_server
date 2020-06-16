@@ -11,12 +11,6 @@ class UserMessage {
             { emitter: data.header.receiver, receiver: data.header.emitter },
           ],
         });
-        let month = new Date().getMonth() + 1,
-          day = new Date().getDate();
-        let date =
-          new Date().getFullYear() +
-          (month < 10 ? '0' + month : month) +
-          (day < 10 ? '0' + day : day);
         if (chat === null) {
           let ct = await new Chat({
             emitter: data.header.emitter,
@@ -43,6 +37,12 @@ class UserMessage {
           });
         } else {
           console.log(chat);
+          let month = new Date().getMonth() + 1,
+            day = new Date().getDate();
+          let date =
+            new Date().getFullYear() +
+            (month < 10 ? '0' + month : month) +
+            (day < 10 ? '0' + day : day);
 
           let chatG = await ChatGroup.findOne({
             chat_id: chat._id,
@@ -79,11 +79,9 @@ class UserMessage {
   }
   static getAllMessages(user) {
     return new Promise(async (resolve, reject) => {
-      await Chat.find({
+      await Chat.findOne({
         $or: [{ emitter: user }, { receiver: user }],
       })
-        .populate('emitter')
-        .populate('receiver')
         .populate('messageGroup')
         .then((c) => resolve(c));
     });

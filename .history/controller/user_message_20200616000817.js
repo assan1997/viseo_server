@@ -11,12 +11,6 @@ class UserMessage {
             { emitter: data.header.receiver, receiver: data.header.emitter },
           ],
         });
-        let month = new Date().getMonth() + 1,
-          day = new Date().getDate();
-        let date =
-          new Date().getFullYear() +
-          (month < 10 ? '0' + month : month) +
-          (day < 10 ? '0' + day : day);
         if (chat === null) {
           let ct = await new Chat({
             emitter: data.header.emitter,

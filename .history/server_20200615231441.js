@@ -67,7 +67,7 @@ io.on('connection', function (socket) {
     let callData = data;
     let peer = clients.find((c) => c.userId === data.peer);
     let init = clients.find((c) => c.userId === data.init);
-    console.log(clients);
+
     console.log(data.peer);
     if (peer === undefined) {
       feedBack();
