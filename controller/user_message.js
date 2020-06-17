@@ -11,8 +11,8 @@ class UserMessage {
             { emitter: data.header.receiver, receiver: data.header.emitter },
           ],
         });
-        console.log("data ", data);
-        console.log(" chat ", chat);
+        // console.log("data ", data);
+        // console.log(" chat ", chat);
         let month = new Date().getMonth() + 1,
           day = new Date().getDate();
         let date =
@@ -44,7 +44,7 @@ class UserMessage {
               });
           });
         } else {
-          console.log(chat);
+          //console.log(chat);
           let chatG = await ChatGroup.findOne({
             chat_id: chat._id,
             date: date,
@@ -56,7 +56,8 @@ class UserMessage {
               time: data.created_at,
             });
             chatG.save();
-            console.log("chat g", chatG);
+            //
+            //console.log("chat g", chatG);
           } else {
             await new ChatGroup({
               chat_id: chat._id,
@@ -103,14 +104,12 @@ class UserMessage {
       let dialog = user.messages.find((d) => d._id == data.dialog_id);
 
       dialog.body = dialog.body.filter((m) => m._id != data.msg);
-      //console.log(dialog);
 
       let messages = user.messages.filter((m) => m._id != data.dialog_id);
-      // console.log(messages);
+
       messages = [...messages, dialog];
       await this.updateMessage(data.user, messages);
       let output = await this.getAllMessages(data.user);
-      //console.log(msg);
 
       resolve(output);
     });
