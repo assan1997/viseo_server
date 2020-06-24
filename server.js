@@ -66,32 +66,20 @@ io.on("connection", function (socket) {
     clients.splice(c, 1);
     roomCleaner(data.room);
   });
-  // APPEL
+  // APPEL //
+
+  // * audio video *//
   socket.on("call", function (data) {
-    let callData = data;
-    let peer = clients.find((c) => c.userId === data.peer);
-    let init = clients.find((c) => c.userId === data.init);
-    //console.log(clients);
-    //console.log(data.peer);
-    if (peer === undefined) {
-      feedBack();
-      socket.emit(
-        "call-event",
-        feedBack("failed", `Echec de la connexion : utilisateur hors ligne`)
-      );
-    } else {
-      if (peer.oncall) {
-        socket.emit(
-          "call-event",
-          feedBack("failed", `${peer.user}à un autre autre appel`)
-        );
-      } else {
-        socket.emit("call-event", feedBack("success", "Appel en cours"));
-        callData.user = init.username;
-        io.to(peer.room).emit("call-signal", callData);
-      }
-    }
+    manageCall(data, io, socket);
   });
+  //* audio video */
+
+  //** partage d'ecran */
+
+  socket.on("sharing-screen", function (data) {
+    manageCall(data, io, socket);
+  });
+  //** partage d'ecran */
   // TRANSMISSION REUSSIE
   socket.on("ok", function (data) {
     let init = clients.find((c) => c.userId === data.init);
@@ -115,6 +103,7 @@ io.on("connection", function (socket) {
     io.to(init.room).emit("initEnd", feedBack("failed", "Appel terminé"));
     io.to(peer.room).emit("peerEnd", feedBack("failed", "Appel terminé"));
   });
+
   socket.on("reload", function (data) {
     let init = clients.find((c) => c.username === data.user);
     if (init !== undefined) {
@@ -176,6 +165,31 @@ function feedBack(status, msg) {
  * @param {} init Un Utilisateur
  * @param {} peer Un Utilisateur
  */
+function manageCall(data, io, socket) {
+  let callData = data;
+  let peer = clients.find((c) => c.userId === data.peer);
+  let init = clients.find((c) => c.userId === data.init);
+  //console.log(clients);
+  //console.log(data.peer);
+  if (peer === undefined) {
+    feedBack();
+    socket.emit(
+      "call-event",
+      feedBack("failed", `Echec de la connexion : utilisateur hors ligne`)
+    );
+  } else {
+    if (peer.oncall) {
+      socket.emit(
+        "call-event",
+        feedBack("failed", `${peer.user}à un autre autre appel`)
+      );
+    } else {
+      socket.emit("call-event", feedBack("success", "Appel en cours"));
+      callData.user = init.username;
+      io.to(peer.room).emit("call-signal", callData);
+    }
+  }
+}
 function OnCallStatus(status, init, peer) {
   if (init !== null || init !== undefined) {
     let iniIndex = clients.findIndex((i) => i.userId === init.userId);
